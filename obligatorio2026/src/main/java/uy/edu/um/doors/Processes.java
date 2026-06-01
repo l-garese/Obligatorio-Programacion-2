@@ -10,6 +10,12 @@ public class Processes implements Comparable<Processes> {
     private ProcessState estado;
     private MyList<Event> eventosAsociados;
 
+
+    @Override
+    public int compareTo(Processes o) {
+        return 0;
+    }
+
     public enum ProcessState{
         NEW,
         PENDING,
@@ -67,4 +73,45 @@ public class Processes implements Comparable<Processes> {
     public void setEstado(ProcessState estado) {
         this.estado = estado;
     }
+
+    public float calcularPrioridad() throws Exception {
+
+        int contadroRAM=0;
+        int contadorCPU=0;
+        int contadorDisco=0;
+        for(int i=0;i<eventosAsociados.size();i++){
+            Event evento=eventosAsociados.get(i);
+            switch (evento.getTipo()){
+                case CPU:
+                    contadorCPU ++;
+                    break;
+                case RAM :
+                    contadroRAM++;
+                    break;
+                case DISK :
+                    contadorDisco++;
+                    break;
+            }
+
+
+
+        }
+        int pevents=contadroRAM+contadorCPU+contadorDisco; //Sumamos en vez de size porque asi no recorremos de nuevo la lista
+
+        switch (propietario.getTipo()){
+            case ADMIN :{
+               return ((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+32*(pevents);
+
+            }
+            case GENERIC:{
+                return ((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+16*(pevents);
+
+            }
+        }
+        //dividimos por caso porque cambia el numero W
+        return 0; //Caso que no matchee nada
+
+
+    }
+
 }
