@@ -2,7 +2,7 @@ package uy.edu.um.doors;
 
 import uy.edu.um.tad.list.MyList;
 
-public class Processes {
+public class Processes implements Comparable<Processes> {
     private int PID;
     private String nombre;
     private User propietario;
