@@ -6,13 +6,14 @@ public class DoorProcess implements Comparable<DoorProcess>{
     private int PID;
     private String nombre;
     private User propietario;
-    private int prioridad;
+    private float prioridad;
     private ProcessState estado;
     private MyList<Event> eventosAsociados;
 
     @Override
     public int compareTo(DoorProcess o) {
-        return this.prioridad - o.prioridad;
+        return Float.compare(o.prioridad, this.prioridad); // compara floats, devuelve int
+
         //lo va a usar el heap de pendientes, que compara por prioridad
     }
 
@@ -52,7 +53,7 @@ public class DoorProcess implements Comparable<DoorProcess>{
         return propietario;
     }
 
-    public int getPrioridad() {
+    public float getPrioridad() {
         return prioridad;
     }
 
@@ -66,7 +67,7 @@ public class DoorProcess implements Comparable<DoorProcess>{
 
     //Setters
 
-    public void setPrioridad(int prioridad) {
+    public void setPrioridad(float prioridad) {
         this.prioridad = prioridad;
     }
 

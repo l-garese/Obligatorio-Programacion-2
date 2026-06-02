@@ -7,8 +7,7 @@ public interface ProcessManager {
     public void loadProcessAndUserData(String processCsvPath, String usersCsvPath);
     public void prepareProcesses() throws Exception;
     public void executeNextProcess();
-    public void prepareProcesses();
-    public void executeNextProcess() throws EmptyQueueException;
+
     public void finishProcessOk();
     public void finishProcessError();
     public void terminateProcess(int uid);

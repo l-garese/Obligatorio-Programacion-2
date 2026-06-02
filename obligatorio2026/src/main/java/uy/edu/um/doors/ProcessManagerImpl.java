@@ -132,16 +132,23 @@ public class ProcessManagerImpl implements ProcessManager{
     public void prepareProcesses() throws Exception {
         //Aca vamos a tener que agarrar todos los procesos nuevos, de ahi calcular su prioridad y lueg0
         //mover al heap de estado pendiente
-        if(new_processes.isEmpty()){
+        if (new_processes.isEmpty()) {
             throw new Exception("No hay proceso nuevos");
         }
-        DoorProcess proceso= new_processes.dequeue();
-        proceso.setPrioridad((int) proceso.calcularPrioridad()); //Preguntar esto, ver como es comparable FLOAT
-        pending_processes.insert(proceso);
-        
-        System.out.println("Se han cargado los nuevos procesos en pending");
-        //FALTA CARGAR AL LOGER
-
+        while (!new_processes.isEmpty()) {
+            DoorProcess proceso = new_processes.dequeue();
+            proceso.setPrioridad(proceso.calcularPrioridad()); //Preguntar esto, ver como es comparable FLOAT
+            proceso.setEstado(DoorProcess.ProcessState.PENDING);
+            pending_processes.insert(proceso);
+            String mensaje = "[" + logger.getTimestamp() + "]: NEW PENDING PROCESS: PID=" + proceso.getPID()
+                    + " | " + proceso.getNombre()
+                    + " | USER:" + proceso.getPropietario().getAlias()
+                    + " UID:" + proceso.getPropietario().getUID()
+                    + " | P=" + proceso.getPrioridad() + "\n";
+            logger.write(mensaje);
+            System.out.println("Se han cargado los nuevos procesos en pending");
+            //FALTA CARGAR AL LOGER
+        }
     }
 
     @Override
