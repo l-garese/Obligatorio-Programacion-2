@@ -1,19 +1,22 @@
 package uy.edu.um.doors;
 
 import uy.edu.um.tad.hash.MyHashImpl;
+import uy.edu.um.tad.heap.MyHeap;
 import uy.edu.um.tad.heap.MyHeapImpl;
+import uy.edu.um.tad.queue.MyQueue;
 import uy.edu.um.tad.queue.MyQueueImpl;
+import uy.edu.um.tad.stack.MyStack;
 import uy.edu.um.tad.stack.MyStackImpl;
 
 public class ProcessManagerImpl implements ProcessManager{
-    MyQueueImpl <Processes> new_processes=new MyQueueImpl();
-    MyHeapImpl <Processes> pending_processes=new MyHeapImpl();
-    MyStackImpl <Processes> finished_processes=new MyStackImpl<>();
-    private Processes runningprocess;
+    MyQueue<DoorProcess> new_processes=new MyQueueImpl();
+    MyHeap<DoorProcess> pending_processes=new MyHeapImpl();
+    MyStack<DoorProcess> finished_processes=new MyStackImpl<>();
+    private DoorProcess runningProcess;
 
     //Implementamos hash para busqueda mas rapida ya que usamos ID muy grandes
     private MyHashImpl<Integer,User> userByUID;
-    private MyHashImpl<Integer,Processes> processesByPID;
+    private MyHashImpl<Integer,DoorProcess> processesByPID;
 
 
 

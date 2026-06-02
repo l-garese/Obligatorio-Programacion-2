@@ -2,13 +2,19 @@ package uy.edu.um.doors;
 
 import uy.edu.um.tad.list.MyList;
 
-public class Processes implements Comparable<Processes> {
+public class DoorProcess implements Comparable<DoorProcess>{
     private int PID;
     private String nombre;
     private User propietario;
     private int prioridad;
     private ProcessState estado;
     private MyList<Event> eventosAsociados;
+
+    @Override
+    public int compareTo(DoorProcess o) {
+        return this.prioridad - o.prioridad;
+        //lo va a usar el heap de pendientes, que compara por prioridad
+    }
 
     public enum ProcessState{
         NEW,
@@ -23,7 +29,7 @@ public class Processes implements Comparable<Processes> {
         TERMINATED
     }
 
-    public Processes(int PID, String nombre, User propietario, MyList<Event> eventosAsociados){
+    public DoorProcess(int PID, String nombre, User propietario, MyList<Event> eventosAsociados){
         this.PID = PID;
         this.nombre = nombre;
         this.propietario = propietario;
