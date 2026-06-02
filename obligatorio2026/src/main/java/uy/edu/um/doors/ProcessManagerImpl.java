@@ -5,6 +5,7 @@ import uy.edu.um.tad.heap.MyHeap;
 import uy.edu.um.tad.heap.MyHeapImpl;
 import uy.edu.um.tad.list.MyLinkedListImpl;
 import uy.edu.um.tad.list.MyList;
+import uy.edu.um.tad.queue.EmptyQueueException;
 import uy.edu.um.tad.queue.MyQueue;
 import uy.edu.um.tad.queue.MyQueueImpl;
 import uy.edu.um.tad.stack.MyStack;
@@ -123,12 +124,19 @@ public class ProcessManagerImpl implements ProcessManager{
 
 
     @Override
-    public void prepareProcesses() {
+    public void prepareProcesses() throws Exception {
         //Aca vamos a tener que agarrar todos los procesos nuevos, de ahi calcular su prioridad y lueg0
         //mover al heap de estado pendiente
-
+        if(new_processes.isEmpty()){
+            throw new Exception("No hay proceso nuevos");
+        }
+        DoorProcess proceso= new_processes.dequeue();
+        proceso.setPrioridad((int) proceso.calcularPrioridad()); //Preguntar esto, ver como es comparable FLOAT
+        pending_processes.insert(proceso);
         
-        System.out.println("IMPLEMENTAR");
+        System.out.println("Se han cargado los nuevos procesos en pending");
+        //FALTA CARGAR AL LOGER
+
     }
 
     @Override
