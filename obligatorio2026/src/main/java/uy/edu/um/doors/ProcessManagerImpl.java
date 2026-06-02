@@ -5,6 +5,8 @@ import uy.edu.um.tad.heap.MyHeap;
 import uy.edu.um.tad.heap.MyHeapImpl;
 import uy.edu.um.tad.list.MyLinkedListImpl;
 import uy.edu.um.tad.list.MyList;
+import uy.edu.um.tad.list.Node;
+import uy.edu.um.tad.queue.EmptyQueueException;
 import uy.edu.um.tad.queue.MyQueue;
 import uy.edu.um.tad.queue.MyQueueImpl;
 import uy.edu.um.tad.stack.MyStack;
@@ -16,15 +18,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+
 public class ProcessManagerImpl implements ProcessManager{
     MyQueue<DoorProcess> new_processes=new MyQueueImpl();
     MyHeap<DoorProcess> pending_processes=new MyHeapImpl();
     MyStack<DoorProcess> finished_processes=new MyStackImpl<>();
     private DoorProcess runningProcess;
+    private Logger logger = new Logger();
 
     //Implementamos hash para busqueda mas rapida ya que usamos ID muy grandes
     private MyHashImpl<Integer,User> userByUID;
     private MyHashImpl<Integer,DoorProcess> processesByPID;
+
+
 
 
     //EL DISEÑO DE LA ESTRUCTURA DE ALMACENAMIENTO DEBE IMPLEMENTARSE EN ESTA CLASE EN RELACIÓN CON LAS ENTIDADES QUE DEFINA
@@ -132,9 +138,47 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     @Override
-    public void executeNextProcess() {
-        System.out.println("IMPLEMENTAR");
+    public void executeNextProcess(){
+        //solo puede existir un proceso en ejecucion en simultaneo, esto significa que runningprocess es un atributo
+        //registrar en el log cada vez que comienza un proceso
+        //su informacion y de sus eventos asociados.
+        if(runningProcess != null) {
+            System.out.println("Ya existe otro proceso corriendo, PID: " + runningProcess.getPID());
+            return;
+        }
+        if (pending_processes.isEmpty()) {
+            System.out.println("No hay procesos pendientes para ejecutar.");
+            return;
+        }
+
+        DoorProcess proceso = pending_processes.remove();
+        proceso.setEstado(DoorProcess.ProcessState.RUNNING);
+        runningProcess = proceso;
+
+        StringBuilder logEntry = new StringBuilder();
+        logEntry.append("[").append(logger.getTimestamp()).append("]: EXECUTING PROCESS: ")
+                .append("PID=").append(proceso.getPID())
+                .append(" | USER:").append(proceso.getPropietario().getAlias())
+                .append(" UID:").append(proceso.getPropietario().getUID())
+                .append("\n");
+
+        Node<Event> node = proceso.getEventosAsociados().getFirst();
+        while (node != null) {
+            Event event = node.getValue();
+            logEntry.append(" EVENT: ").append(event.getTipo())
+                    .append(" | Instructions ").append(event.getInstrucciones())
+                    .append("\n");
+            node = node.getNext();
+        }
+        //usando nodos es O(n) si uso get(i) termina sendo O(nˆ2)
+
+        // Escribir en el archivo de log y mostrar por pantalla
+        logger.write(logEntry.toString());
+        System.out.print(logEntry.toString());
+
     }
+
+
 
     @Override
     public void finishProcessOk() {
