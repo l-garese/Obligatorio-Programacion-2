@@ -145,7 +145,7 @@ public class ProcessManagerImpl implements ProcessManager{
                     + " | USER:" + proceso.getPropietario().getAlias()
                     + " UID:" + proceso.getPropietario().getUID()
                     + " | P=" + proceso.getPrioridad() + "\n";
-            logger.write(mensaje);
+            logger.write(mensaje);  //Aca utilizo la funcion write
             System.out.println("Se han cargado los nuevos procesos en pending");
             //FALTA CARGAR AL LOGER
         }

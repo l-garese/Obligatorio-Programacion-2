@@ -7,7 +7,6 @@ public interface ProcessManager {
     public void loadProcessAndUserData(String processCsvPath, String usersCsvPath);
     public void prepareProcesses() throws Exception;
     public void executeNextProcess();
-
     public void finishProcessOk();
     public void finishProcessError();
     public void terminateProcess(int uid);
