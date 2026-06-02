@@ -73,4 +73,5 @@ public class DoorProcess implements Comparable<DoorProcess>{
     public void setEstado(ProcessState estado) {
         this.estado = estado;
     }
+    
 }
