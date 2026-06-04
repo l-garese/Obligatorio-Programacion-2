@@ -9,10 +9,13 @@ public class DoorProcess implements Comparable<DoorProcess>{
     private float prioridad;
     private ProcessState estado;
     private MyList<Event> eventosAsociados;
+    private User terminadoPor; //se registra cuando un usuario fuerza que el proceso termine
+    private static final int MAX_FINISHED = 3; // use un valor cualquiera porque en la letra dice que es una constante definida por el sistema
+
 
     @Override
     public int compareTo(DoorProcess o) {
-        return Float.compare(o.prioridad, this.prioridad); // compara floats, devuelve int
+        return Float.compare(this.prioridad, o.prioridad); // compara floats, devuelve int
 
         //lo va a usar el heap de pendientes, que compara por prioridad
     }
@@ -30,16 +33,25 @@ public class DoorProcess implements Comparable<DoorProcess>{
         TERMINATED
     }
 
-    public DoorProcess(int PID, String nombre, User propietario, MyList<Event> eventosAsociados){
+    public DoorProcess(int PID, String nombre, User propietario, MyList<Event> eventosAsociados) {
         this.PID = PID;
         this.nombre = nombre;
         this.propietario = propietario;
         this.prioridad = 0;
         this.estado = ProcessState.NEW;
         this.eventosAsociados = eventosAsociados;
+        this.terminadoPor = null;
     }
 
     //Getters
+
+    public static int getMaxFinished() {
+        return MAX_FINISHED;
+    }
+
+    public User getTerminadoPor() {
+        return terminadoPor;
+    }
 
     public int getPID() {
         return PID;
@@ -75,6 +87,9 @@ public class DoorProcess implements Comparable<DoorProcess>{
         this.estado = estado;
     }
 
+    public void setTerminadoPor(User terminadoPor) {
+        this.terminadoPor = terminadoPor;
+    }
 
     public float calcularPrioridad() throws Exception {
         int contadroRAM=0;
