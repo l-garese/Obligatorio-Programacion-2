@@ -9,6 +9,7 @@ import uy.edu.um.tad.list.Node;
 import uy.edu.um.tad.queue.EmptyQueueException;
 import uy.edu.um.tad.queue.MyQueue;
 import uy.edu.um.tad.queue.MyQueueImpl;
+import uy.edu.um.tad.stack.EmptyStackException;
 import uy.edu.um.tad.stack.MyStack;
 import uy.edu.um.tad.stack.MyStackImpl;
 
@@ -20,15 +21,15 @@ import java.nio.file.Path;
 
 
 public class ProcessManagerImpl implements ProcessManager{
-    MyQueue<DoorProcess> new_processes=new MyQueueImpl();
-    MyHeap<DoorProcess> pending_processes=new MyHeapImpl();
+    MyQueue<DoorProcess> new_processes=new MyQueueImpl<>();
+    MyHeap<DoorProcess> pending_processes=new MyHeapImpl<>(false); //significa que es heap max. Arregle tambien el compareto
     MyStack<DoorProcess> finished_processes=new MyStackImpl<>();
     private DoorProcess runningProcess;
-    private Logger logger = new Logger();
+    private final Logger logger = new Logger();
 
     //Implementamos hash para busqueda mas rapida ya que usamos ID muy grandes
-    private MyHashImpl<Integer,User> userByUID;
-    private MyHashImpl<Integer,DoorProcess> processesByPID;
+    private final MyHashImpl<Integer,User> userByUID =new MyHashImpl<>();
+    private final MyHashImpl<Integer,DoorProcess> processesByPID = new MyHashImpl<>();
 
 
 
@@ -130,7 +131,7 @@ public class ProcessManagerImpl implements ProcessManager{
 
     @Override
     public void prepareProcesses() throws Exception {
-        //Aca vamos a tener que agarrar todos los procesos nuevos, de ahi calcular su prioridad y lueg0
+        //Aca vamos a tener que agarrar todos los procesos nuevos, de ahi calcular su prioridad y luego
         //mover al heap de estado pendiente
         if (new_processes.isEmpty()) {
             throw new Exception("No hay proceso nuevos");
@@ -140,15 +141,10 @@ public class ProcessManagerImpl implements ProcessManager{
             proceso.setPrioridad(proceso.calcularPrioridad()); //Preguntar esto, ver como es comparable FLOAT
             proceso.setEstado(DoorProcess.ProcessState.PENDING);
             pending_processes.insert(proceso);
-            String mensaje = "[" + logger.getTimestamp() + "]: NEW PENDING PROCESS: PID=" + proceso.getPID()
-                    + " | " + proceso.getNombre()
-                    + " | USER:" + proceso.getPropietario().getAlias()
-                    + " UID:" + proceso.getPropietario().getUID()
-                    + " | P=" + proceso.getPrioridad() + "\n";
+            String mensaje = "[" + logger.getTimestamp() + "]: NEW PENDING PROCESS: PID=" + proceso.getPID() + " | " + proceso.getNombre() + " | USER:" + proceso.getPropietario().getAlias() + " UID:" + proceso.getPropietario().getUID() + " | P=" + proceso.getPrioridad() + "\n";
             logger.write(mensaje);  //Aca utilizo la funcion write
-            System.out.println("Se han cargado los nuevos procesos en pending");
-            //FALTA CARGAR AL LOGER
         }
+        System.out.println("Se han cargado los nuevos procesos en pending");
     }
 
     @Override
@@ -169,6 +165,9 @@ public class ProcessManagerImpl implements ProcessManager{
         proceso.setEstado(DoorProcess.ProcessState.RUNNING);
         runningProcess = proceso;
 
+
+        //el string builder construye el mensaje antes de enviarselo al logger porque son muchas lineas
+        // y tendria q usar muchos writes seguidos
         StringBuilder logEntry = new StringBuilder();
         logEntry.append("[").append(logger.getTimestamp()).append("]: EXECUTING PROCESS: ")
                 .append("PID=").append(proceso.getPID())
@@ -178,13 +177,22 @@ public class ProcessManagerImpl implements ProcessManager{
 
         Node<Event> node = proceso.getEventosAsociados().getFirst();
         while (node != null) {
-            Event event = node.getValue();
-            logEntry.append(" EVENT: ").append(event.getTipo())
-                    .append(" | Instructions ").append(event.getInstrucciones())
-                    .append("\n");
+            Event evento = node.getValue();
+            logEntry.append(" EVENT: ").append(evento.getTipo()).append(" | Instructions [");
+
+            Node<String> instrNode = evento.getInstrucciones().getFirst();
+            while (instrNode != null) {
+                logEntry.append(instrNode.getValue());
+                if (instrNode.getNext() != null) { //este if funciona para que no agregue una , en la ultima instruccion
+                    logEntry.append(", ");
+                }
+                instrNode = instrNode.getNext();
+            }
+            logEntry.append("]\n");
             node = node.getNext();
         }
         //usando nodos es O(n) si uso get(i) termina sendo O(nˆ2)
+    // le agregue tambien una recorrida (usando nodos) de la lista de instrucciones dentro de cada evento.
 
         // Escribir en el archivo de log y mostrar por pantalla
         logger.write(logEntry.toString());
@@ -192,21 +200,73 @@ public class ProcessManagerImpl implements ProcessManager{
 
     }
 
-
-
-    @Override
-    public void finishProcessOk() {
-        System.out.println("IMPLEMENTAR");
+    // funcion auxiliar porque este codigo se repetia en los 3 finish
+    private void StackOverflow() throws EmptyStackException {
+        if (finished_processes.size() == DoorProcess.getMaxFinished()) {
+            logger.write("[" + logger.getTimestamp() + "]: Finished process stack overflow\n");
+            while (!finished_processes.isEmpty()) {
+                DoorProcess p = finished_processes.pop();
+                logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + p.getPID() + " | STATE: " + p.getEstado() + "\n");
+            }
+        }
     }
 
     @Override
-    public void finishProcessError() {
-        System.out.println("IMPLEMENTAR");
+    public void finishProcessOk() throws EmptyStackException {
+        if (runningProcess == null) {
+            System.out.println("No hay proceso en ejecución.");
+            return;
+        }
+
+        DoorProcess proceso = runningProcess;
+        runningProcess = null;
+        proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+
+        StackOverflow();
+
+        finished_processes.push(proceso);
+        logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + proceso.getPID() + " | STATE: OK\n");
     }
 
     @Override
-    public void terminateProcess(int uid) {
-        System.out.println("IMPLEMENTAR");
+    public void finishProcessError() throws EmptyStackException {
+        if (runningProcess == null) {
+            System.out.println("No hay proceso en ejecución.");
+            return;
+        }
+
+        DoorProcess proceso = runningProcess;
+        runningProcess = null;
+        proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+
+        StackOverflow();
+
+        finished_processes.push(proceso);
+        logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + proceso.getPID() + " | STATE: ERROR\n");
+    }
+
+    @Override
+    public void terminateProcess(int uid) throws EmptyStackException {
+        if (runningProcess == null) {
+            System.out.println("No hay proceso en ejecución.");
+            return;
+        }
+
+        User terminadoPor = userByUID.get(uid);
+        if (terminadoPor == null) {
+            System.out.println("No existe usuario con UID=" + uid);
+            return;
+        }
+
+        DoorProcess proceso = runningProcess;
+        runningProcess = null;
+        proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+        proceso.setTerminadoPor(terminadoPor);
+
+        StackOverflow();
+
+        finished_processes.push(proceso);
+        logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + proceso.getPID() + " | STATE: TERMINATED by USER:" + proceso.getTerminadoPor().getAlias() + " UID:" + proceso.getTerminadoPor().getUID() + "\n");
     }
 
     @Override

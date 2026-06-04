@@ -7,7 +7,7 @@ import java.time.format.DateTimeFormatter;
 
 
 public class Logger {
-    private String fileName;
+    private final String fileName;
 
     public Logger() {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
