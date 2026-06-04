@@ -1,5 +1,7 @@
 package uy.edu.um.doors;
 
+import exceptions.DatoDuplicadoException;
+import exceptions.UsuarioNoEncontradoException;
 import uy.edu.um.tad.hash.MyHashImpl;
 import uy.edu.um.tad.heap.MyHeap;
 import uy.edu.um.tad.heap.MyHeapImpl;
@@ -28,8 +30,8 @@ public class ProcessManagerImpl implements ProcessManager{
     private final Logger logger = new Logger();
 
     //Implementamos hash para busqueda mas rapida ya que usamos ID muy grandes
-    private final MyHashImpl<Integer,User> userByUID =new MyHashImpl<>();
-    private final MyHashImpl<Integer,DoorProcess> processesByPID = new MyHashImpl<>();
+    private MyHashImpl<Integer,User> userByUID =new MyHashImpl<>();
+    private MyHashImpl<Integer,DoorProcess> processesByPID = new MyHashImpl<>();
 
 
 
@@ -39,57 +41,117 @@ public class ProcessManagerImpl implements ProcessManager{
     @Override
     public void loadProcessAndUserData(String processCsvPath, String usersCsvPath) {
         try {
+            if (processesByPID.size() > 0 || userByUID.size() > 0) {
+                System.out.println("Error: Los datos ya fueron cargados en esta sesión.");
+                return;
+                //Esto salta cuando es la segunda vez que haces load, se maneja asi y no
+                //como exception para que no vaya a los catch y haga reiniciar estructuras
+                //que si pasara eso se borraría el load inicial
+            }
+
             leerUsuarios(usersCsvPath);
             leerProcesos(processCsvPath);
+
         } catch (IOException e) {
+            reiniciarEstructuras();
             System.out.println("Error cargando archivos: " + e.getMessage());
+
+        } catch (DatoDuplicadoException e) {
+            reiniciarEstructuras();
+            System.out.println("Error de datos duplicados: " + e.getMessage());
+
+        } catch (UsuarioNoEncontradoException e) {
+            reiniciarEstructuras();
+            System.out.println("Error de usuario no encontrado: " + e.getMessage());
         }
     }
 
-    private void leerUsuarios(String usersPath) throws IOException {
+    private void leerUsuarios(String usersPath) throws IOException, DatoDuplicadoException {
         //Modifico el tutorial de archivos dado en clase de informática:
+        BufferedReader br = null;
+        try {
+            br = Files.newBufferedReader(Path.of(usersPath), StandardCharsets.UTF_8);
+            String linea = br.readLine(); // leo encabezado: uid;alias;type
 
-        BufferedReader br = Files.newBufferedReader(Path.of(usersPath), StandardCharsets.UTF_8);
-        String linea = br.readLine(); // leo encabezado: uid;alias;type
+            while ((linea = br.readLine()) != null) {
 
-        while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(";"); //En el Csv de usuarios los datos están separados por ";"
 
-            String[] datos = linea.split(";"); //En el Csv de usuarios los datos están separados por ";"
+                int UID = Integer.parseInt(datos[0]); //Guardo el UID como lo primero antes del ";"
+                String alias = datos[1]; //Guardo el alias como lo segundo que hay entre ";"
+                User.UserType tipo = User.UserType.valueOf(datos[2]); //Guardo el tipo como lo tercero que hay entre ";"
 
-            int UID = Integer.parseInt(datos[0]); //Guardo el UID como lo primero antes del ";"
-            String alias = datos[1]; //Guardo el alias como lo segundo que hay entre ";"
-            User.UserType tipo = User.UserType.valueOf(datos[2]); //Guardo el tipo como lo tercero que hay entre ";"
+                if (userByUID.contains(UID)) {
+                    throw new DatoDuplicadoException("Usuario repetido con UID: " + UID);
+                }
 
-            User user = new User(UID, alias, tipo); //Creo el usuario con los datos que guarde
-            userByUID.put(UID, user); //También agrego el UID al Hash
+                User user = new User(UID, alias, tipo); //Creo el usuario con los datos que guarde
+                userByUID.put(UID, user); //También agrego el UID al Hash
+            }
+        }finally{
+            if(br != null) {
+                br.close();
+            }
         }
-        br.close();
     }
 
-    private void leerProcesos(String processPath) throws IOException {
+    private void leerProcesos(String processPath) throws IOException, DatoDuplicadoException, UsuarioNoEncontradoException {
         //Modifico el tutorial de archivos dado en clase de informática:
+        BufferedReader br = null;
+        try {
+            br = Files.newBufferedReader(Path.of(processPath), StandardCharsets.UTF_8);
+            String linea = br.readLine(); // leo encabezado: pid;uid;name;events
 
-        BufferedReader br = Files.newBufferedReader(Path.of(processPath), StandardCharsets.UTF_8);
-        String linea = br.readLine(); // leo encabezado: pid;uid;name;events
+            while ((linea = br.readLine()) != null) {
 
-        while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(";", 4); //El 4 aclara que cuando llegue a una cuarta columna (eventos) deje de dividir
 
-            String[] datos = linea.split(";", 4); //El 4 aclara que cuando llegue a una cuarta columna (eventos) deje de dividir
+                int PID = Integer.parseInt(datos[0]);
+                int UID = Integer.parseInt(datos[1]);
+                String nombre = datos[2];
+                String eventosTexto = datos[3];
 
-            int PID = Integer.parseInt(datos[0]);
-            int UID = Integer.parseInt(datos[1]);
-            String nombre = datos[2];
-            String eventosTexto = datos[3];
+                if (processesByPID.contains(PID)) {
+                    throw new DatoDuplicadoException("Proceso repetido con PID: " + PID);
+                }
 
-            User propietario = userByUID.get(UID); //Con el UID que conseguí obtengo el objeto User con ese UID
+                User propietario = userByUID.get(UID); //Con el UID que conseguí obtengo el objeto User con ese UID
 
-            MyList<Event> eventos = leerEventos(eventosTexto); //Hay que leer la columna de eventos también
+                if (propietario == null) {
+                    throw new UsuarioNoEncontradoException(
+                            "No existe usuario con UID: " + UID + " para el proceso PID: " + PID
+                    );
+                }
 
-            DoorProcess proceso = new DoorProcess(PID, nombre, propietario, eventos); //Creo el objeto DoorProcess
-            new_processes.enqueue(proceso); //Agrego el proceso a la lista de procesos nuevos
-            processesByPID.put(PID, proceso); //Agrego el PID a su Hash
+                MyList<Event> eventos = leerEventos(eventosTexto); //Hay que leer la columna de eventos también
+
+                DoorProcess proceso = new DoorProcess(PID, nombre, propietario, eventos); //Creo el objeto DoorProcess
+                new_processes.enqueue(proceso); //Agrego el proceso a la lista de procesos nuevos
+                processesByPID.put(PID, proceso); //Agrego el PID a su Hash
+            }
+        }finally {
+            if(br != null) {
+                br.close();
+            }
+            //El if y crearlo = a null al principio es por si por algún error no se llega a crear el br
+            //El finally es necesario por si salta algún exception es necesario que se cierre el br, cosa que sin el finally capaz no pasaría
         }
-        br.close();
+    }
+
+    private void reiniciarEstructuras() {
+        new_processes = new MyQueueImpl<>();
+        pending_processes = new MyHeapImpl<>(false);
+        finished_processes = new MyStackImpl<>();
+
+        runningProcess = null;
+
+        userByUID = new MyHashImpl<>();
+        processesByPID = new MyHashImpl<>();
+
+        //Si se empiezan a cargar los datos y se encuentra un repetido la carga se detiene
+        //Pero hay que borrar lo que ya había cargado parcialmente, para eso se usa esta función
+        //Apunta nuestras estructuras a cosas vacías y lo que teníamos antes queda perdido y lo
+        //borra el garbage collector
     }
 
     private MyList<Event> leerEventos(String eventosTexto) {
