@@ -88,7 +88,7 @@ public class ProcessManagerImpl implements ProcessManager{
                 User user = new User(UID, alias, tipo); //Creo el usuario con los datos que guarde
                 userByUID.put(UID, user); //También agrego el UID al Hash
             }
-        }finally{
+        } finally {
             if(br != null) {
                 br.close();
             }
@@ -180,8 +180,8 @@ public class ProcessManagerImpl implements ProcessManager{
 
             MyList<String> instrucciones = new MyLinkedListImpl<>(); //Creo la lista donde las voy a guardar
 
-            for (int i = 0; i < instruccionesSeparadas.length; i++) {
-                instrucciones.add(instruccionesSeparadas[i].trim()); //Cada instruccion que había dividido la agrego la lista de instrucciones
+            for (String instruccionesSeparada : instruccionesSeparadas) {
+                instrucciones.add(instruccionesSeparada.trim()); //Cada instruccion que había dividido la agrego la lista de instrucciones
             }
 
             Event evento = new Event(tipo, instrucciones); //Creo el evento
@@ -331,23 +331,146 @@ public class ProcessManagerImpl implements ProcessManager{
         logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + proceso.getPID() + " | STATE: TERMINATED by USER:" + proceso.getTerminadoPor().getAlias() + " UID:" + proceso.getTerminadoPor().getUID() + "\n");
     }
 
+    //Verbose true si hay que poner eventos
+    //-1 si el filtro no aplica
     @Override
     public void printStatus() {
-        System.out.println("IMPLEMENTAR");
+        printStatusAux(false, null, null);
     }
 
     @Override
     public void printStatusVerbose() {
-        System.out.println("IMPLEMENTAR");
+        printStatusAux(true, null, null);
     }
 
     @Override
     public void printStatusByUser(int uid) {
-        System.out.println("IMPLEMENTAR");
+        printStatusAux(false, uid, null);
     }
 
     @Override
     public void printStatusByProcess(int pid) {
-        System.out.println("IMPLEMENTAR");
+        printStatusAux(true, null, pid);
     }
+
+    private void printStatusAux(boolean verbose, Integer uidFilter, Integer pidFilter) {
+        StringBuilder logEntry = new StringBuilder();
+        logEntry.append("PROCESS STATUS\n");
+
+        //El proceso que se está ejecutando es solo 1, asi que no se necesita función recursiva
+        logEntry.append("EXECUTING:\n");
+        if (runningProcess != null && matchesFilters(runningProcess, uidFilter, pidFilter)) {
+            //Si hay un proceso ejecutándose y cumple los filtros agregarlo al logEntry
+            logEntry.append("\t") //Es el tab
+                    .append(formatProcess(runningProcess)) //Se tiene que ver con un formato que hice una auxiliar porque comparte con pendientes
+                    .append("\n");
+            //Si le pusimos como condición que tiene que ser verbose tiene que agregar los eventos de cada proceso
+            if (verbose) {
+                appendEvents(logEntry, runningProcess); //Función auxiliar para imprimir los eventos más abajo
+            }
+        }
+        logEntry.append("PENDING:\n");
+        logPendingProcesses(logEntry, verbose, uidFilter, pidFilter); //Función recursiva para procesos pendientes
+
+        logEntry.append("FINISHED:\n");
+        logFinishedProcesses(logEntry, verbose, uidFilter, pidFilter); //Función recursiva para procesos finalizados
+
+        logger.write(logEntry.toString()); //Lo agrega al logger
+        System.out.print(logEntry.toString()); //Lo muestra en consola
+    }
+
+    // Función para ver si cumple los filtros
+    //Se usa en un if, entonces si es true pone ese proceso, si es false no lo pone
+    private boolean matchesFilters(DoorProcess p, Integer uidFilter, Integer pidFilter) {
+        //Si hay condición de UID: el UID que se pasó tiene que ser igual al del proceso actual
+        if (uidFilter != null && p.getPropietario().getUID() != uidFilter) {
+            //Como no lo es que no se agregue
+            return false;
+        }
+        //Si hay condición de PID: el PID que se pasó tiene que ser igual al del proceso actual
+        if (pidFilter != null && p.getPID() != pidFilter) {
+            return false;
+            //Solo va a ser true con un proceso
+        }
+        //Si no hay de esas condiciones que agreguen todos los eventos
+        return true;
+    }
+
+    private void logPendingProcesses(StringBuilder logEntry, boolean verbose, Integer uidFilter, Integer pidFilter) {
+        if (pending_processes.isEmpty()) {
+            return;
+        }
+        DoorProcess p = pending_processes.remove(); //Saca un elemento del heap para poder recorrerlo
+        if (matchesFilters(p, uidFilter, pidFilter)) {
+            logEntry.append("\t")
+                    .append(formatProcess(p))
+                    .append("\n");
+            if (verbose) {
+                appendEvents(logEntry, p);
+            }
+        }
+        logPendingProcesses(logEntry, verbose, uidFilter, pidFilter); //Recursion
+        pending_processes.insert(p); //Vuelve a agregar el elemento que saco
+        //Va a quedar como estaba por el stack de la recursion
+    }
+
+    private void logFinishedProcesses(StringBuilder logEntry, boolean verbose, Integer uidFilter, Integer pidFilter) {
+        if (finished_processes.isEmpty()) {
+            return;
+        }
+        try{
+            DoorProcess p = finished_processes.pop();
+            if (matchesFilters(p, uidFilter, pidFilter)) {
+                logEntry.append("\t")
+                        .append(formatFinishedProcess(p))
+                        .append("\n");
+                if (verbose) {
+                    appendEvents(logEntry, p);
+                }
+            }
+            logFinishedProcesses(logEntry, verbose, uidFilter, pidFilter);
+            finished_processes.push(p);
+        }catch(EmptyStackException e){
+             return; //Lo tuve que poner para que no me dé error el pop
+        }
+
+    }
+
+    private String formatProcess(DoorProcess p) {
+        return "PID=" + p.getPID()
+                + " | " + p.getNombre()
+                + " | USER:" + p.getPropietario().getAlias()
+                + " UID:" + p.getPropietario().getUID()
+                + " | P=" + p.getPrioridad();
+    }
+
+    private String formatFinishedProcess(DoorProcess p) {
+        return "PID=" + p.getPID()
+                + " " + p.getNombre()
+                + " | STATE: " + p.getEstado()
+                + " | USER:" + p.getPropietario().getAlias()
+                + " UID:" + p.getPropietario().getUID();
+    }
+
+    //Cuando es verbose necesito poder agregar los eventos
+    private void appendEvents(StringBuilder logEntry, DoorProcess p) {
+        MyList<Event> eventos = p.getEventosAsociados();
+        for (int i = 0; i < eventos.size(); i++) {
+            Event evento = eventos.get(i);
+            logEntry.append("\t\tEVENT: ")
+                    .append(evento.getTipo())
+                    .append(" | Instructions [");
+            //Ahora las instrucciones de ese evento:
+            MyList<String> instrucciones = evento.getInstrucciones();
+            for (int j = 0; j < instrucciones.size(); j++) {
+                logEntry.append(instrucciones.get(j));
+                //Pone comas entre instrucciones excepto después de la última
+                if (j < instrucciones.size() - 1) {
+                    logEntry.append(", ");
+                }
+            }
+            logEntry.append("]\n");
+        }
+    }
+
 }
