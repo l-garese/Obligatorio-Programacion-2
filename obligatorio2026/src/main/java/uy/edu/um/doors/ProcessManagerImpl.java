@@ -240,7 +240,7 @@ public class ProcessManagerImpl implements ProcessManager{
         Node<Event> node = proceso.getEventosAsociados().getFirst();
         while (node != null) {
             Event evento = node.getValue();
-            logEntry.append(" EVENT: ").append(evento.getTipo()).append(" | Instructions [");
+            logEntry.append("EVENT: ").append(evento.getTipo()).append(" | Instructions [");
 
             Node<String> instrNode = evento.getInstrucciones().getFirst();
             while (instrNode != null) {
@@ -268,7 +268,7 @@ public class ProcessManagerImpl implements ProcessManager{
             logger.write("[" + logger.getTimestamp() + "]: Finished process stack overflow\n");
             while (!finished_processes.isEmpty()) {
                 DoorProcess p = finished_processes.pop();
-                logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + p.getPID() + " | STATE: " + p.getEstado() + "\n");
+                logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + p.getPID() + " | STATE: " + p.getfinishedState() + "\n");
             }
         }
     }
@@ -283,6 +283,7 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+        proceso.setFinishedState(DoorProcess.FinishedState.OK);
 
         StackOverflow();
 
@@ -300,7 +301,7 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
-
+        proceso.setFinishedState(DoorProcess.FinishedState.ERROR);
         StackOverflow();
 
         finished_processes.push(proceso);
@@ -323,6 +324,7 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+        proceso.setFinishedState(DoorProcess.FinishedState.TERMINATED);
         proceso.setTerminadoPor(terminadoPor);
 
         StackOverflow();
@@ -445,31 +447,41 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     private String formatFinishedProcess(DoorProcess p) {
-        return "PID=" + p.getPID()
-                + " " + p.getNombre()
-                + " | STATE: " + p.getEstado()
-                + " | USER:" + p.getPropietario().getAlias()
-                + " UID:" + p.getPropietario().getUID();
+        StringBuilder sb = new StringBuilder();
+        sb.append("PID=").append(p.getPID())
+                .append(" ").append(p.getNombre())
+                .append(" | STATE: ").append(p.getfinishedState());
+
+        if (p.getTerminadoPor() != null) {
+            sb.append(" by USER:").append(p.getTerminadoPor().getAlias())
+                    .append(" UID:").append(p.getTerminadoPor().getUID());
+        }
+
+        sb.append(" | USER:").append(p.getPropietario().getAlias())
+                .append(" UID:").append(p.getPropietario().getUID());
+
+        return sb.toString();
     }
 
     //Cuando es verbose necesito poder agregar los eventos
     private void appendEvents(StringBuilder logEntry, DoorProcess p) {
-        MyList<Event> eventos = p.getEventosAsociados();
-        for (int i = 0; i < eventos.size(); i++) {
-            Event evento = eventos.get(i);
+        Node<Event> eventoNode = p.getEventosAsociados().getFirst();
+        while (eventoNode != null) {
+            Event evento = eventoNode.getValue();
             logEntry.append("\t\tEVENT: ")
                     .append(evento.getTipo())
                     .append(" | Instructions [");
-            //Ahora las instrucciones de ese evento:
-            MyList<String> instrucciones = evento.getInstrucciones();
-            for (int j = 0; j < instrucciones.size(); j++) {
-                logEntry.append(instrucciones.get(j));
-                //Pone comas entre instrucciones excepto después de la última
-                if (j < instrucciones.size() - 1) {
+
+            Node<String> instrNode = evento.getInstrucciones().getFirst();
+            while (instrNode != null) {
+                logEntry.append(instrNode.getValue());
+                if (instrNode.getNext() != null) {
                     logEntry.append(", ");
                 }
+                instrNode = instrNode.getNext();
             }
             logEntry.append("]\n");
+            eventoNode = eventoNode.getNext();
         }
     }
 

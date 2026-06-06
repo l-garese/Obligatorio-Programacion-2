@@ -6,18 +6,23 @@ public class DoorProcess implements Comparable<DoorProcess>{
     private int PID;
     private String nombre;
     private User propietario;
-    private float prioridad;
+    private int prioridad;
     private ProcessState estado;
     private MyList<Event> eventosAsociados;
     private User terminadoPor; //se registra cuando un usuario fuerza que el proceso termine
-    private static final int MAX_FINISHED = 3; // use un valor cualquiera porque en la letra dice que es una constante definida por el sistema
+    private static final int MAX_FINISHED = 3;
+    private FinishedState finishedState;// use un valor cualquiera porque en la letra dice que es una constante definida por el sistema
 
 
     @Override
     public int compareTo(DoorProcess o) {
-        return Float.compare(this.prioridad, o.prioridad); // compara floats, devuelve int
+        return Integer.compare(this.prioridad, o.prioridad); // compara floats, devuelve int
 
         //lo va a usar el heap de pendientes, que compara por prioridad
+    }
+
+    public String getfinishedState() {
+        return finishedState.toString();
     }
 
     public enum ProcessState{
@@ -44,6 +49,11 @@ public class DoorProcess implements Comparable<DoorProcess>{
     }
 
     //Getters
+
+
+    public FinishedState getFinishedState() {
+        return finishedState;
+    }
 
     public static int getMaxFinished() {
         return MAX_FINISHED;
@@ -79,7 +89,7 @@ public class DoorProcess implements Comparable<DoorProcess>{
 
     //Setters
 
-    public void setPrioridad(float prioridad) {
+    public void setPrioridad(int prioridad) {
         this.prioridad = prioridad;
     }
 
@@ -91,7 +101,11 @@ public class DoorProcess implements Comparable<DoorProcess>{
         this.terminadoPor = terminadoPor;
     }
 
-    public float calcularPrioridad() throws Exception {
+    public void setFinishedState(FinishedState finishedState) {
+        this.finishedState = finishedState;
+    }
+
+    public int calcularPrioridad() throws Exception {
         int contadroRAM=0;
         int contadorCPU=0;
         int contadorDisco=0;
@@ -113,11 +127,11 @@ public class DoorProcess implements Comparable<DoorProcess>{
 
         switch (propietario.getTipo()){
         case ADMIN :{
-            return ((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+32*(pevents);
+            return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+32*(pevents));
 
         }
         case GENERIC:{
-            return ((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+16*(pevents);
+            return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+16*(pevents));
 
             }
         }
