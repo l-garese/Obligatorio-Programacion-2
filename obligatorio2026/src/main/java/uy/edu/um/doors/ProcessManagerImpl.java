@@ -263,15 +263,33 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     // funcion auxiliar porque este codigo se repetia en los 3 finish
-    private void StackOverflow() throws EmptyStackException {
+    private void stackOverflow() throws EmptyStackException {
         if (finished_processes.size() == DoorProcess.getMaxFinished()) {
             logger.write("[" + logger.getTimestamp() + "]: Finished process stack overflow\n");
             while (!finished_processes.isEmpty()) {
                 DoorProcess p = finished_processes.pop();
-                logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + p.getPID() + " | STATE: " + p.getfinishedState() + "\n");
+                processesByPID.remove(p.getPID());
+
+                StringBuilder msg = new StringBuilder();
+                msg.append("[").append(p.getFinishedAt()).append("]: ")
+                        .append("PID=").append(p.getPID())
+                        .append(" ").append(p.getNombre())
+                        .append(" | STATE: ").append(p.getfinishedState());
+
+                if (p.getTerminadoPor() != null) {
+                    msg.append(" by USER:").append(p.getTerminadoPor().getAlias())
+                            .append(" UID:").append(p.getTerminadoPor().getUID());
+                }
+
+                msg.append(" | USER:").append(p.getPropietario().getAlias())
+                        .append(" UID:").append(p.getPropietario().getUID())
+                        .append("\n");
+
+                logger.write(msg.toString());
             }
         }
     }
+
 
     @Override
     public void finishProcessOk() throws EmptyStackException {
@@ -283,9 +301,10 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+        proceso.setFinishedAt(logger.getTimestamp());
         proceso.setFinishedState(DoorProcess.FinishedState.OK);
 
-        StackOverflow();
+        stackOverflow();
 
         finished_processes.push(proceso);
         logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + proceso.getPID() + " | STATE: OK\n");
@@ -301,8 +320,9 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+        proceso.setFinishedAt(logger.getTimestamp());
         proceso.setFinishedState(DoorProcess.FinishedState.ERROR);
-        StackOverflow();
+        stackOverflow();
 
         finished_processes.push(proceso);
         logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + proceso.getPID() + " | STATE: ERROR\n");
@@ -324,10 +344,11 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
+        proceso.setFinishedAt(logger.getTimestamp());
         proceso.setFinishedState(DoorProcess.FinishedState.TERMINATED);
         proceso.setTerminadoPor(terminadoPor);
 
-        StackOverflow();
+        stackOverflow();
 
         finished_processes.push(proceso);
         logger.write("[" + logger.getTimestamp() + "]: ENDING PROCESS: PID=" + proceso.getPID() + " | STATE: TERMINATED by USER:" + proceso.getTerminadoPor().getAlias() + " UID:" + proceso.getTerminadoPor().getUID() + "\n");
@@ -337,17 +358,17 @@ public class ProcessManagerImpl implements ProcessManager{
     //-1 si el filtro no aplica
     @Override
     public void printStatus() {
-        printStatusAux(false, null, null);
+        printStatusAux(false, null);
     }
 
     @Override
     public void printStatusVerbose() {
-        printStatusAux(true, null, null);
+        printStatusAux(true, null);
     }
 
     @Override
     public void printStatusByUser(int uid) {
-        printStatusAux(false, uid, null);
+        printStatusAux(false, uid);
     }
 
     @Override
@@ -376,13 +397,13 @@ public class ProcessManagerImpl implements ProcessManager{
         System.out.print(sb.toString());
     }
 
-    private void printStatusAux(boolean verbose, Integer uidFilter, Integer pidFilter) {
+    private void printStatusAux(boolean verbose, Integer uidFilter) {
         StringBuilder sb = new StringBuilder();
         sb.append("PROCESS STATUS\n");
 
         //El proceso que se está ejecutando es solo 1, asi que no se necesita función recursiva
         sb.append("EXECUTING:\n");
-        if (runningProcess != null && matchesFilters(runningProcess, uidFilter, pidFilter)) {
+        if (runningProcess != null && matchesFilters(runningProcess, uidFilter)) {
             //Si hay un proceso ejecutándose y cumple los filtros agregarlo al sb
             sb.append("\t") //Es el tab
                     .append(formatProcess(runningProcess)) //Se tiene que ver con un formato que hice una auxiliar porque comparte con pendientes
@@ -393,36 +414,26 @@ public class ProcessManagerImpl implements ProcessManager{
             }
         }
         sb.append("PENDING:\n");
-        logPendingProcesses(sb, verbose, uidFilter, pidFilter); //Función recursiva para procesos pendientes
+        logPendingProcesses(sb, verbose, uidFilter); //Función recursiva para procesos pendientes
 
         sb.append("FINISHED:\n");
-        logFinishedProcesses(sb, verbose, uidFilter, pidFilter); //Función recursiva para procesos finalizados
+        logFinishedProcesses(sb, verbose, uidFilter); //Función recursiva para procesos finalizados
         System.out.print(sb.toString()); //Lo muestra en consola
     }
 
     // Función para ver si cumple los filtros
     //Se usa en un if, entonces si es true pone ese proceso, si es false no lo pone
-    private boolean matchesFilters(DoorProcess p, Integer uidFilter, Integer pidFilter) {
+    private boolean matchesFilters(DoorProcess p, Integer uidFilter) {
         //Si hay condición de UID: el UID que se pasó tiene que ser igual al del proceso actual
-        if (uidFilter != null && p.getPropietario().getUID() != uidFilter) {
-            //Como no lo es que no se agregue
-            return false;
-        }
-        //Si hay condición de PID: el PID que se pasó tiene que ser igual al del proceso actual
-        if (pidFilter != null && p.getPID() != pidFilter) {
-            return false;
-            //Solo va a ser true con un proceso
-        }
-        //Si no hay de esas condiciones que agreguen todos los eventos
-        return true;
+        return (uidFilter == null && p.getPropietario().getUID() == uidFilter);
     }
 
-    private void logPendingProcesses(StringBuilder sb, boolean verbose, Integer uidFilter, Integer pidFilter) {
+    private void logPendingProcesses(StringBuilder sb, boolean verbose, Integer uidFilter) {
         if (pending_processes.isEmpty()) {
             return;
         }
         DoorProcess p = pending_processes.remove(); //Saca un elemento del heap para poder recorrerlo
-        if (matchesFilters(p, uidFilter, pidFilter)) {
+        if (matchesFilters(p, uidFilter)) {
             sb.append("\t")
                     .append(formatProcess(p))
                     .append("\n");
@@ -430,18 +441,18 @@ public class ProcessManagerImpl implements ProcessManager{
                 appendEvents(sb, p);
             }
         }
-        logPendingProcesses(sb, verbose, uidFilter, pidFilter); //Recursion
+        logPendingProcesses(sb, verbose, uidFilter); //Recursion
         pending_processes.insert(p); //Vuelve a agregar el elemento que saco
         //Va a quedar como estaba por el stack de la recursion
     }
 
-    private void logFinishedProcesses(StringBuilder sb, boolean verbose, Integer uidFilter, Integer pidFilter) {
+    private void logFinishedProcesses(StringBuilder sb, boolean verbose, Integer uidFilter) {
         if (finished_processes.isEmpty()) {
             return;
         }
         try{
             DoorProcess p = finished_processes.pop();
-            if (matchesFilters(p, uidFilter, pidFilter)) {
+            if (matchesFilters(p, uidFilter)) {
                 sb.append("\t")
                         .append(formatFinishedProcess(p))
                         .append("\n");
@@ -449,7 +460,7 @@ public class ProcessManagerImpl implements ProcessManager{
                     appendEvents(sb, p);
                 }
             }
-            logFinishedProcesses(sb, verbose, uidFilter, pidFilter);
+            logFinishedProcesses(sb, verbose, uidFilter);
             finished_processes.push(p);
         }catch(EmptyStackException e){
              return; //Lo tuve que poner para que no me dé error el pop
