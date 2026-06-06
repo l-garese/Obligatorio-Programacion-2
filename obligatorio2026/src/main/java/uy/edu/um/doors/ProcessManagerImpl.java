@@ -352,33 +352,52 @@ public class ProcessManagerImpl implements ProcessManager{
 
     @Override
     public void printStatusByProcess(int pid) {
-        printStatusAux(true, null, pid);
+        DoorProcess p = processesByPID.get(pid);
+        if (p == null) {
+            System.out.println("No existe proceso con PID=" + pid);
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("PROCESS STATUS\n");
+        if (p.getEstado() == DoorProcess.ProcessState.FINISHED) {
+            sb.append("FINISHED:\n");
+            sb.append("\t").append(formatFinishedProcess(p)).append("\n");
+        } else if (p.getEstado() == DoorProcess.ProcessState.RUNNING) {
+            sb.append("EXECUTING:\n");
+            sb.append("\t").append(formatProcess(p)).append("\n");
+        } else if (p.getEstado() == DoorProcess.ProcessState.PENDING) {
+            sb.append("PENDING:\n");
+            sb.append("\t").append(formatProcess(p)).append("\n");
+        } else {
+            sb.append("NEW:\n");
+            sb.append("\t").append(formatProcess(p)).append("\n");
+        }
+        appendEvents(sb, p);
+        System.out.print(sb.toString());
     }
 
     private void printStatusAux(boolean verbose, Integer uidFilter, Integer pidFilter) {
-        StringBuilder logEntry = new StringBuilder();
-        logEntry.append("PROCESS STATUS\n");
+        StringBuilder sb = new StringBuilder();
+        sb.append("PROCESS STATUS\n");
 
         //El proceso que se está ejecutando es solo 1, asi que no se necesita función recursiva
-        logEntry.append("EXECUTING:\n");
+        sb.append("EXECUTING:\n");
         if (runningProcess != null && matchesFilters(runningProcess, uidFilter, pidFilter)) {
-            //Si hay un proceso ejecutándose y cumple los filtros agregarlo al logEntry
-            logEntry.append("\t") //Es el tab
+            //Si hay un proceso ejecutándose y cumple los filtros agregarlo al sb
+            sb.append("\t") //Es el tab
                     .append(formatProcess(runningProcess)) //Se tiene que ver con un formato que hice una auxiliar porque comparte con pendientes
                     .append("\n");
             //Si le pusimos como condición que tiene que ser verbose tiene que agregar los eventos de cada proceso
             if (verbose) {
-                appendEvents(logEntry, runningProcess); //Función auxiliar para imprimir los eventos más abajo
+                appendEvents(sb, runningProcess); //Función auxiliar para imprimir los eventos más abajo
             }
         }
-        logEntry.append("PENDING:\n");
-        logPendingProcesses(logEntry, verbose, uidFilter, pidFilter); //Función recursiva para procesos pendientes
+        sb.append("PENDING:\n");
+        logPendingProcesses(sb, verbose, uidFilter, pidFilter); //Función recursiva para procesos pendientes
 
-        logEntry.append("FINISHED:\n");
-        logFinishedProcesses(logEntry, verbose, uidFilter, pidFilter); //Función recursiva para procesos finalizados
-
-        logger.write(logEntry.toString()); //Lo agrega al logger
-        System.out.print(logEntry.toString()); //Lo muestra en consola
+        sb.append("FINISHED:\n");
+        logFinishedProcesses(sb, verbose, uidFilter, pidFilter); //Función recursiva para procesos finalizados
+        System.out.print(sb.toString()); //Lo muestra en consola
     }
 
     // Función para ver si cumple los filtros
@@ -398,39 +417,39 @@ public class ProcessManagerImpl implements ProcessManager{
         return true;
     }
 
-    private void logPendingProcesses(StringBuilder logEntry, boolean verbose, Integer uidFilter, Integer pidFilter) {
+    private void logPendingProcesses(StringBuilder sb, boolean verbose, Integer uidFilter, Integer pidFilter) {
         if (pending_processes.isEmpty()) {
             return;
         }
         DoorProcess p = pending_processes.remove(); //Saca un elemento del heap para poder recorrerlo
         if (matchesFilters(p, uidFilter, pidFilter)) {
-            logEntry.append("\t")
+            sb.append("\t")
                     .append(formatProcess(p))
                     .append("\n");
             if (verbose) {
-                appendEvents(logEntry, p);
+                appendEvents(sb, p);
             }
         }
-        logPendingProcesses(logEntry, verbose, uidFilter, pidFilter); //Recursion
+        logPendingProcesses(sb, verbose, uidFilter, pidFilter); //Recursion
         pending_processes.insert(p); //Vuelve a agregar el elemento que saco
         //Va a quedar como estaba por el stack de la recursion
     }
 
-    private void logFinishedProcesses(StringBuilder logEntry, boolean verbose, Integer uidFilter, Integer pidFilter) {
+    private void logFinishedProcesses(StringBuilder sb, boolean verbose, Integer uidFilter, Integer pidFilter) {
         if (finished_processes.isEmpty()) {
             return;
         }
         try{
             DoorProcess p = finished_processes.pop();
             if (matchesFilters(p, uidFilter, pidFilter)) {
-                logEntry.append("\t")
+                sb.append("\t")
                         .append(formatFinishedProcess(p))
                         .append("\n");
                 if (verbose) {
-                    appendEvents(logEntry, p);
+                    appendEvents(sb, p);
                 }
             }
-            logFinishedProcesses(logEntry, verbose, uidFilter, pidFilter);
+            logFinishedProcesses(sb, verbose, uidFilter, pidFilter);
             finished_processes.push(p);
         }catch(EmptyStackException e){
              return; //Lo tuve que poner para que no me dé error el pop
@@ -464,23 +483,23 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     //Cuando es verbose necesito poder agregar los eventos
-    private void appendEvents(StringBuilder logEntry, DoorProcess p) {
+    private void appendEvents(StringBuilder sb, DoorProcess p) {
         Node<Event> eventoNode = p.getEventosAsociados().getFirst();
         while (eventoNode != null) {
             Event evento = eventoNode.getValue();
-            logEntry.append("\t\tEVENT: ")
+            sb.append("\t\tEVENT: ")
                     .append(evento.getTipo())
                     .append(" | Instructions [");
 
             Node<String> instrNode = evento.getInstrucciones().getFirst();
             while (instrNode != null) {
-                logEntry.append(instrNode.getValue());
+                sb.append(instrNode.getValue());
                 if (instrNode.getNext() != null) {
-                    logEntry.append(", ");
+                    sb.append(", ");
                 }
                 instrNode = instrNode.getNext();
             }
-            logEntry.append("]\n");
+            sb.append("]\n");
             eventoNode = eventoNode.getNext();
         }
     }
