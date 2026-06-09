@@ -1,6 +1,7 @@
 package uy.edu.um.doors;
 
 import uy.edu.um.tad.list.MyList;
+import uy.edu.um.tad.list.Node;
 
 public class DoorProcess implements Comparable<DoorProcess>{
     private int PID;
@@ -10,9 +11,7 @@ public class DoorProcess implements Comparable<DoorProcess>{
     private ProcessState estado;
     private MyList<Event> eventosAsociados;
     private User terminadoPor; //se registra cuando un usuario fuerza que el proceso termine
-    private static final int MAX_FINISHED = 3;
     private FinishedState finishedState;// use un valor cualquiera porque en la letra dice que es una constante definida por el sistema
-    private String finishedAt;
 
     @Override
     public int compareTo(DoorProcess o) {
@@ -46,17 +45,8 @@ public class DoorProcess implements Comparable<DoorProcess>{
 
     //Getters
 
-
-    public String getFinishedAt() {
-        return finishedAt;
-    }
-
     public FinishedState getfinishedState() {
         return finishedState;
-    }
-
-    public static int getMaxFinished() {
-        return MAX_FINISHED;
     }
 
     public User getTerminadoPor() {
@@ -89,10 +79,6 @@ public class DoorProcess implements Comparable<DoorProcess>{
 
     //Setters
 
-    public void setFinishedAt(String finishedAt) {
-        this.finishedAt = finishedAt;
-    }
-
     public void setPrioridad(int prioridad) {
         this.prioridad = prioridad;
     }
@@ -110,39 +96,36 @@ public class DoorProcess implements Comparable<DoorProcess>{
     }
 
     public int calcularPrioridad() throws Exception {
-        int contadroRAM=0;
-        int contadorCPU=0;
-        int contadorDisco=0;
-        for(int i=0;i<eventosAsociados.size();i++){
-        Event evento=eventosAsociados.get(i);
-        switch (evento.getTipo()){
-            case CPU:
-                contadorCPU ++;
-                break;
-            case RAM :
-                contadroRAM++;
-                break;
-            case DISK :
-                contadorDisco++;
-                break;
-         }
+        int contadroRAM = 0;
+        int contadorCPU = 0;
+        int contadorDisco = 0;
+        Node<Event> nodo = eventosAsociados.getFirst();
+        while (nodo != null) {
+            Event evento = nodo.getValue();
+            switch (evento.getTipo()) {
+                case CPU:
+                    contadorCPU++;
+                    break;
+                case RAM:
+                    contadroRAM++;
+                    break;
+                case DISK:
+                    contadorDisco++;
+                    break;
+            }
+            nodo = nodo.getNext();
         }
-        int pevents=contadroRAM+contadorCPU+contadorDisco; //Sumamos en vez de size porque asi no recorremos de nuevo la lista
-
+        int pevents = contadroRAM + contadorCPU + contadorDisco; //Sumamos en vez de size porque asi no recorremos de nuevo la lista
         switch (propietario.getTipo()){
-        case ADMIN :{
-            return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+32*(pevents));
-
-        }
-        case GENERIC:{
-            return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+16*(pevents));
-
+            case ADMIN :{
+                return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+32*(pevents));
+            }
+            case GENERIC:{
+                return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+16*(pevents));
             }
         }
-    //dividimos por caso porque cambia el numero W
+        //dividimos por caso porque cambia el número W
         return 0; //Caso que no matchee nada
-
-
     }
 
 }

@@ -23,20 +23,19 @@ import java.nio.file.Path;
 
 
 public class ProcessManagerImpl implements ProcessManager{
-    MyQueue<DoorProcess> new_processes=new MyQueueImpl<>();
-    MyHeap<DoorProcess> pending_processes=new MyHeapImpl<>(false); //significa que es heap max. Arregle tambien el compareto
-    MyStack<DoorProcess> finished_processes=new MyStackImpl<>();
+    MyQueue<DoorProcess> new_processes = new MyQueueImpl<>();
+    MyHeap<DoorProcess> pending_processes = new MyHeapImpl<>(false); //Significa que es heap max. Arregle también el compareTo
+    MyStack<DoorProcess> finished_processes = new MyStackImpl<>();
     private DoorProcess runningProcess;
     private final Logger logger = new Logger();
 
-    //Implementamos hash para busqueda mas rapida ya que usamos ID muy grandes
+    //Implementamos hash para búsqueda más rápida, ya que usamos ID muy grandes
     private MyHashImpl<Integer,User> userByUID =new MyHashImpl<>();
     private MyHashImpl<Integer,DoorProcess> processesByPID = new MyHashImpl<>();
 
+    private static final int maxFinished = 3; //La letra dice que el sistema sabe el número máximo de procesos finalizados
 
 
-
-    //EL DISEÑO DE LA ESTRUCTURA DE ALMACENAMIENTO DEBE IMPLEMENTARSE EN ESTA CLASE EN RELACIÓN CON LAS ENTIDADES QUE DEFINA
 
     @Override
     public void loadProcessAndUserData(String processCsvPath, String usersCsvPath) {
@@ -46,7 +45,7 @@ public class ProcessManagerImpl implements ProcessManager{
                 return;
                 //Esto salta cuando es la segunda vez que haces load, se maneja asi y no
                 //como exception para que no vaya a los catch y haga reiniciar estructuras
-                //que si pasara eso se borraría el load inicial
+                //que si pasara eso se borraría la carga inicial
             }
 
             leerUsuarios(usersCsvPath);
@@ -204,16 +203,16 @@ public class ProcessManagerImpl implements ProcessManager{
             proceso.setEstado(DoorProcess.ProcessState.PENDING);
             pending_processes.insert(proceso);
             String mensaje = "[" + logger.getTimestamp() + "]: NEW PENDING PROCESS: PID=" + proceso.getPID() + " | " + proceso.getNombre() + " | USER:" + proceso.getPropietario().getAlias() + " UID:" + proceso.getPropietario().getUID() + " | P=" + proceso.getPrioridad() + "\n";
-            logger.write(mensaje);  //Aca utilizo la funcion write
+            logger.write(mensaje);  //Aca utilizo la función write
         }
         System.out.println("Se han cargado los nuevos procesos en pending");
     }
 
     @Override
     public void executeNextProcess(){
-        //solo puede existir un proceso en ejecucion en simultaneo, esto significa que runningprocess es un atributo
+        //solo puede existir un proceso en ejecución en simultáneo, esto significa que runningProcess es un atributo
         //registrar en el log cada vez que comienza un proceso
-        //su informacion y de sus eventos asociados.
+        //su información y de sus eventos asociados.
         if(runningProcess != null) {
             System.out.println("Ya existe otro proceso corriendo, PID: " + runningProcess.getPID());
             return;
@@ -222,14 +221,11 @@ public class ProcessManagerImpl implements ProcessManager{
             System.out.println("No hay procesos pendientes para ejecutar.");
             return;
         }
-
         DoorProcess proceso = pending_processes.remove();
         proceso.setEstado(DoorProcess.ProcessState.RUNNING);
         runningProcess = proceso;
-
-
-        //el string builder construye el mensaje antes de enviarselo al logger porque son muchas lineas
-        // y tendria q usar muchos writes seguidos
+        //el string builder construye el mensaje antes de enviárselo al logger porque son muchas líneas
+        // y tendría que usar muchos writes seguidos
         StringBuilder logEntry = new StringBuilder();
         logEntry.append("[").append(logger.getTimestamp()).append("]: EXECUTING PROCESS: ")
                 .append("PID=").append(proceso.getPID())
@@ -245,7 +241,7 @@ public class ProcessManagerImpl implements ProcessManager{
             Node<String> instrNode = evento.getInstrucciones().getFirst();
             while (instrNode != null) {
                 logEntry.append(instrNode.getValue());
-                if (instrNode.getNext() != null) { //este if funciona para que no agregue una , en la ultima instruccion
+                if (instrNode.getNext() != null) { //este if funciona para que no agregue una, en la última instruccion
                     logEntry.append(", ");
                 }
                 instrNode = instrNode.getNext();
@@ -253,43 +249,30 @@ public class ProcessManagerImpl implements ProcessManager{
             logEntry.append("]\n");
             node = node.getNext();
         }
-        //usando nodos es O(n) si uso get(i) termina sendo O(nˆ2)
-    // le agregue tambien una recorrida (usando nodos) de la lista de instrucciones dentro de cada evento.
+        //usando nodos es O(n) si uso get(i) termina siendo O(nˆ2)
+        // le agregue también una recorrida (usando nodos) de la lista de instrucciones dentro de cada evento.
 
         // Escribir en el archivo de log y mostrar por pantalla
         logger.write(logEntry.toString());
         System.out.print(logEntry.toString());
-
     }
 
-    // funcion auxiliar porque este codigo se repetia en los 3 finish
+    // función auxiliar porque este código se repetía en los 3 finish
     private void stackOverflow() throws EmptyStackException {
-        if (finished_processes.size() == DoorProcess.getMaxFinished()) {
-            logger.write("[" + logger.getTimestamp() + "]: Finished process stack overflow\n");
+        if (finished_processes.size() == maxFinished) {
+            StringBuilder msg = new StringBuilder();
+            msg.append("[")
+                    .append(logger.getTimestamp())
+                    .append("]: Finished process stack overflow\n");
             while (!finished_processes.isEmpty()) {
                 DoorProcess p = finished_processes.pop();
-                processesByPID.remove(p.getPID());
-
-                StringBuilder msg = new StringBuilder();
-                msg.append("[").append(p.getFinishedAt()).append("]: ")
-                        .append("PID=").append(p.getPID())
-                        .append(" ").append(p.getNombre())
-                        .append(" | STATE: ").append(p.getfinishedState());
-
-                if (p.getTerminadoPor() != null) {
-                    msg.append(" by USER:").append(p.getTerminadoPor().getAlias())
-                            .append(" UID:").append(p.getTerminadoPor().getUID());
-                }
-
-                msg.append(" | USER:").append(p.getPropietario().getAlias())
-                        .append(" UID:").append(p.getPropietario().getUID())
+                msg.append(formatFinishedProcess(p))
                         .append("\n");
-
-                logger.write(msg.toString());
+                processesByPID.remove(p.getPID());
             }
+            logger.write(msg.toString());
         }
     }
-
 
     @Override
     public void finishProcessOk() throws EmptyStackException {
@@ -301,7 +284,6 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
-        proceso.setFinishedAt(logger.getTimestamp());
         proceso.setFinishedState(DoorProcess.FinishedState.OK);
 
         stackOverflow();
@@ -320,7 +302,6 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
-        proceso.setFinishedAt(logger.getTimestamp());
         proceso.setFinishedState(DoorProcess.FinishedState.ERROR);
         stackOverflow();
 
@@ -344,7 +325,6 @@ public class ProcessManagerImpl implements ProcessManager{
         DoorProcess proceso = runningProcess;
         runningProcess = null;
         proceso.setEstado(DoorProcess.ProcessState.FINISHED);
-        proceso.setFinishedAt(logger.getTimestamp());
         proceso.setFinishedState(DoorProcess.FinishedState.TERMINATED);
         proceso.setTerminadoPor(terminadoPor);
 
@@ -425,7 +405,7 @@ public class ProcessManagerImpl implements ProcessManager{
     //Se usa en un if, entonces si es true pone ese proceso, si es false no lo pone
     private boolean matchesFilters(DoorProcess p, Integer uidFilter) {
         //Si hay condición de UID: el UID que se pasó tiene que ser igual al del proceso actual
-        return (uidFilter == null && p.getPropietario().getUID() == uidFilter);
+        return (uidFilter == null || p.getPropietario().getUID() == uidFilter);
     }
 
     private void logPendingProcesses(StringBuilder sb, boolean verbose, Integer uidFilter) {
@@ -505,6 +485,7 @@ public class ProcessManagerImpl implements ProcessManager{
             Node<String> instrNode = evento.getInstrucciones().getFirst();
             while (instrNode != null) {
                 sb.append(instrNode.getValue());
+                //Para que no le agregue la coma después de la última instruccion
                 if (instrNode.getNext() != null) {
                     sb.append(", ");
                 }
