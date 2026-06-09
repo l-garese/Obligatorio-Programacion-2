@@ -3,8 +3,8 @@ package uy.edu.um.doors;
 import uy.edu.um.tad.list.MyList;
 
 public class Event {
-    private EventType tipo;
-    private MyList<String> instrucciones;
+    private final EventType tipo;
+    private final MyList<String> instrucciones;
 
     public enum EventType{
         CPU,

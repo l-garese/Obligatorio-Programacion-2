@@ -1,9 +1,9 @@
 package uy.edu.um.doors;
 
 public class User {
-    private int UID;
-    private String alias;
-    private UserType tipo;
+    private final int UID;
+    private final String alias;
+    private final UserType tipo;
 
     public enum UserType{
         ADMIN,

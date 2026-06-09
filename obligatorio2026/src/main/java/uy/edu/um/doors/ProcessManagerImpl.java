@@ -33,9 +33,6 @@ public class ProcessManagerImpl implements ProcessManager{
     private MyHashImpl<Integer,User> userByUID =new MyHashImpl<>();
     private MyHashImpl<Integer,DoorProcess> processesByPID = new MyHashImpl<>();
 
-    private static final int maxFinished = 3; //La letra dice que el sistema sabe el número máximo de procesos finalizados
-
-
 
     @Override
     public void loadProcessAndUserData(String processCsvPath, String usersCsvPath) {
@@ -259,7 +256,7 @@ public class ProcessManagerImpl implements ProcessManager{
 
     // función auxiliar porque este código se repetía en los 3 finish
     private void stackOverflow() throws EmptyStackException {
-        if (finished_processes.size() == maxFinished) {
+        if (finished_processes.size() == MAX_FINISHED_PROCESS_ON_RAM) { //Esa variable está en la interfaz
             StringBuilder msg = new StringBuilder();
             msg.append("[")
                     .append(logger.getTimestamp())

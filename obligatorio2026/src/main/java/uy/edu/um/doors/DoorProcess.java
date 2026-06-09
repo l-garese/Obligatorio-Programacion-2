@@ -4,19 +4,18 @@ import uy.edu.um.tad.list.MyList;
 import uy.edu.um.tad.list.Node;
 
 public class DoorProcess implements Comparable<DoorProcess>{
-    private int PID;
-    private String nombre;
-    private User propietario;
+    private final int PID;
+    private final String nombre;
+    private final User propietario;
     private int prioridad;
     private ProcessState estado;
-    private MyList<Event> eventosAsociados;
+    private final MyList<Event> eventosAsociados;
     private User terminadoPor; //se registra cuando un usuario fuerza que el proceso termine
     private FinishedState finishedState;// use un valor cualquiera porque en la letra dice que es una constante definida por el sistema
 
     @Override
     public int compareTo(DoorProcess o) {
-        return Integer.compare(this.prioridad, o.prioridad); // compara floats, devuelve int
-
+        return Integer.compare(this.prioridad, o.prioridad);
         //lo va a usar el heap de pendientes, que compara por prioridad
     }
 
@@ -96,7 +95,7 @@ public class DoorProcess implements Comparable<DoorProcess>{
     }
 
     public int calcularPrioridad() throws Exception {
-        int contadroRAM = 0;
+        int contadorRAM = 0;
         int contadorCPU = 0;
         int contadorDisco = 0;
         Node<Event> nodo = eventosAsociados.getFirst();
@@ -107,7 +106,7 @@ public class DoorProcess implements Comparable<DoorProcess>{
                     contadorCPU++;
                     break;
                 case RAM:
-                    contadroRAM++;
+                    contadorRAM++;
                     break;
                 case DISK:
                     contadorDisco++;
@@ -115,17 +114,17 @@ public class DoorProcess implements Comparable<DoorProcess>{
             }
             nodo = nodo.getNext();
         }
-        int pevents = contadroRAM + contadorCPU + contadorDisco; //Sumamos en vez de size porque asi no recorremos de nuevo la lista
+        int events = contadorRAM + contadorCPU + contadorDisco; //Sumamos en vez de size porque asi no recorremos de nuevo la lista
         switch (propietario.getTipo()){
             case ADMIN :{
-                return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+32*(pevents));
+                return (int) (((8*contadorCPU + 2*contadorRAM+2*contadorDisco)/((float)events))+32*(events));
             }
             case GENERIC:{
-                return (int) (((8*contadorCPU + 2*contadroRAM+2*contadorDisco)/((float)pevents))+16*(pevents));
+                return (int) (((8*contadorCPU + 2*contadorRAM+2*contadorDisco)/((float)events))+16*(events));
             }
         }
         //dividimos por caso porque cambia el número W
-        return 0; //Caso que no matchee nada
+        return 0; //Caso que no hizo match
     }
 
 }
