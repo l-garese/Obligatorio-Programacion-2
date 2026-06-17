@@ -3,6 +3,7 @@ package uy.edu.um.doors;
 import exceptions.DatoDuplicadoException;
 import exceptions.UsuarioNoEncontradoException;
 import uy.edu.um.tad.hash.MyHashImpl;
+import uy.edu.um.tad.heap.EmptyHeapException;
 import uy.edu.um.tad.heap.MyHeap;
 import uy.edu.um.tad.heap.MyHeapImpl;
 import uy.edu.um.tad.list.MyLinkedListImpl;
@@ -29,9 +30,19 @@ public class ProcessManagerImpl implements ProcessManager{
     private DoorProcess runningProcess;
     private final Logger logger = new Logger();
 
+
     //Implementamos hash para búsqueda más rápida, ya que usamos ID muy grandes
     private MyHashImpl<Integer,User> userByUID =new MyHashImpl<>();
     private MyHashImpl<Integer,DoorProcess> processesByPID = new MyHashImpl<>();
+
+    public MyHeap<DoorProcess> getPendingProcesses() {
+        return this.pending_processes;
+    } //Getter para usar en el test
+    public MyQueue<DoorProcess> getNew_processes() {
+        return this.new_processes;
+    }
+    //Getter para usar en el test
+
 
 
     @Override
@@ -150,6 +161,7 @@ public class ProcessManagerImpl implements ProcessManager{
         //borra el garbage collector
     }
 
+
     private MyList<Event> leerEventos(String eventosTexto) {
 
         MyList<Event> eventos = new MyLinkedListImpl<>(); //Creo la lista donde voy a ir guardando los eventos
@@ -206,7 +218,7 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     @Override
-    public void executeNextProcess(){
+    public void executeNextProcess()throws EmptyHeapException {
         //solo puede existir un proceso en ejecución en simultáneo, esto significa que runningProcess es un atributo
         //registrar en el log cada vez que comienza un proceso
         //su información y de sus eventos asociados.
@@ -215,8 +227,7 @@ public class ProcessManagerImpl implements ProcessManager{
             return;
         }
         if (pending_processes.isEmpty()) {
-            System.out.println("No hay procesos pendientes para ejecutar.");
-            return;
+            throw new EmptyHeapException("No hay procesos pendientes");
         }
         DoorProcess proceso = pending_processes.remove();
         proceso.setEstado(DoorProcess.ProcessState.RUNNING);
