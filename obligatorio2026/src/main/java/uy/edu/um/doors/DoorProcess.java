@@ -3,6 +3,8 @@ package uy.edu.um.doors;
 import uy.edu.um.tad.list.MyList;
 import uy.edu.um.tad.list.Node;
 
+import java.util.Objects;
+
 public class DoorProcess implements Comparable<DoorProcess>{
     private final int PID;
     private final String nombre;
@@ -18,6 +20,7 @@ public class DoorProcess implements Comparable<DoorProcess>{
         return Integer.compare(this.prioridad, o.prioridad);
         //lo va a usar el heap de pendientes, que compara por prioridad
     }
+
 
     public enum ProcessState{
         NEW,
@@ -43,7 +46,9 @@ public class DoorProcess implements Comparable<DoorProcess>{
     }
 
     //Getters
-
+    public ProcessState getProcessState() {
+        return estado;
+    }
     public FinishedState getfinishedState() {
         return finishedState;
     }
@@ -127,4 +132,25 @@ public class DoorProcess implements Comparable<DoorProcess>{
         return 0; //Caso que no hizo match
     }
 
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        DoorProcess that = (DoorProcess) o;
+        return PID == that.PID && prioridad == that.prioridad && Objects.equals(nombre, that.nombre) && Objects.equals(propietario, that.propietario) && estado == that.estado && Objects.equals(eventosAsociados, that.eventosAsociados) && Objects.equals(terminadoPor, that.terminadoPor) && finishedState == that.finishedState;
+    }
+
+    @Override
+    public String toString() {
+        return "DoorProcess{" +
+                "PID=" + PID +
+                ", nombre='" + nombre + '\'' +
+                ", propietario=" + propietario +
+                ", prioridad=" + prioridad +
+                ", estado=" + estado +
+                ", eventosAsociados=" + eventosAsociados +
+                ", terminadoPor=" + terminadoPor +
+                ", finishedState=" + finishedState +
+                '}';
+    }
 }

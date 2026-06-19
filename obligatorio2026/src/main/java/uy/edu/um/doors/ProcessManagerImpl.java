@@ -1,7 +1,9 @@
 package uy.edu.um.doors;
 
+import exceptions.NoRunningProcessException;
 import exceptions.DatoDuplicadoException;
 import exceptions.UsuarioNoEncontradoException;
+import uy.edu.um.tad.hash.MyHash;
 import uy.edu.um.tad.hash.MyHashImpl;
 import uy.edu.um.tad.heap.EmptyHeapException;
 import uy.edu.um.tad.heap.MyHeap;
@@ -35,15 +37,26 @@ public class ProcessManagerImpl implements ProcessManager{
     private MyHashImpl<Integer,User> userByUID =new MyHashImpl<>();
     private MyHashImpl<Integer,DoorProcess> processesByPID = new MyHashImpl<>();
 
+
+    //GETTERS para tests
     public MyHeap<DoorProcess> getPendingProcesses() {
         return this.pending_processes;
-    } //Getter para usar en el test
+    }
     public MyQueue<DoorProcess> getNew_processes() {
         return this.new_processes;
     }
-    //Getter para usar en el test
 
+    public DoorProcess getRunningProcess() {
+        return runningProcess;
+    }
 
+    public MyStack<DoorProcess> getFinished_processes() {
+        return finished_processes;
+    }
+
+    public <Key, Value> MyHash<Key,Value> getUserByUID() {
+        return (MyHash<Key, Value>) userByUID;
+    }
 
     @Override
     public void loadProcessAndUserData(String processCsvPath, String usersCsvPath) {
@@ -283,11 +296,8 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     @Override
-    public void finishProcessOk() throws EmptyStackException {
-        if (runningProcess == null) {
-            System.out.println("No hay proceso en ejecución.");
-            return;
-        }
+    public void finishProcessOk() throws EmptyStackException, NoRunningProcessException {
+        if (runningProcess == null) throw new NoRunningProcessException("No hay procesos pendientes");
 
         DoorProcess proceso = runningProcess;
         runningProcess = null;
@@ -301,11 +311,8 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     @Override
-    public void finishProcessError() throws EmptyStackException {
-        if (runningProcess == null) {
-            System.out.println("No hay proceso en ejecución.");
-            return;
-        }
+    public void finishProcessError() throws EmptyStackException, NoRunningProcessException {
+        if (runningProcess == null) throw new NoRunningProcessException("No hay procesos pendientes");
 
         DoorProcess proceso = runningProcess;
         runningProcess = null;
@@ -318,17 +325,12 @@ public class ProcessManagerImpl implements ProcessManager{
     }
 
     @Override
-    public void terminateProcess(int uid) throws EmptyStackException {
-        if (runningProcess == null) {
-            System.out.println("No hay proceso en ejecución.");
-            return;
-        }
+    public void terminateProcess(int uid) throws EmptyStackException, NoRunningProcessException, UsuarioNoEncontradoException {
+        if (runningProcess == null) throw new NoRunningProcessException("No hay procesos pendientes");
 
         User terminadoPor = userByUID.get(uid);
-        if (terminadoPor == null) {
-            System.out.println("No existe usuario con UID=" + uid);
-            return;
-        }
+        if (terminadoPor == null) throw new UsuarioNoEncontradoException("Usuario no encontrado");
+
 
         DoorProcess proceso = runningProcess;
         runningProcess = null;
@@ -503,5 +505,6 @@ public class ProcessManagerImpl implements ProcessManager{
             eventoNode = eventoNode.getNext();
         }
     }
+
 
 }

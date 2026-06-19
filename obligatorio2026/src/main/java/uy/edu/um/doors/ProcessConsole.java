@@ -1,5 +1,7 @@
 package uy.edu.um.doors;
 
+import exceptions.NoRunningProcessException;
+import exceptions.UsuarioNoEncontradoException;
 import uy.edu.um.tad.stack.EmptyStackException;
 
 import java.nio.file.Files;
@@ -121,7 +123,7 @@ public class ProcessConsole {
         }
     }
 
-    private void handleFinishCommand(String[] parts) throws EmptyStackException {
+    private void handleFinishCommand(String[] parts) throws EmptyStackException, NoRunningProcessException {
         if (parts.length < 2) {
             System.out.println("Uso: pfinish OK | ERROR | TERM [UID]");
             return;
@@ -144,6 +146,8 @@ public class ProcessConsole {
                     processManager.terminateProcess(uid);
                 } catch (NumberFormatException e) {
                     System.out.println("UID no es un número de ID válido");
+                } catch (UsuarioNoEncontradoException e) {
+                    throw new RuntimeException(e);
                 }
                 break;
             default:
