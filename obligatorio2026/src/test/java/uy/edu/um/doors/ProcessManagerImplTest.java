@@ -16,9 +16,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ProcessManagerImplTest {
 
-    @Test
-    void loadProcessAndUserData() {
-    }
 
     @Test
     void InsercionPorPrioridadALaQueue() throws Exception { //Pruebo la funcion prepareprocess
@@ -175,19 +172,112 @@ class ProcessManagerImplTest {
         assertThrows(NoRunningProcessException.class, () -> manager.terminateProcess(111));
     }
 
-    @Test
-    void printStatus() {
+    //tests de los prints
+    private ProcessManagerImpl setupConDatos() {
+        ProcessManagerImpl manager = new ProcessManagerImpl();
+
+        User adminUser = new User(1, "usuarioAdmin", User.UserType.ADMIN);
+        User genericUser = new User(2, "usuarioGenerico", User.UserType.GENERIC);
+        manager.getUserByUID().put(1, adminUser);
+        manager.getUserByUID().put(2, genericUser);
+
+        // Proceso en ejecución
+        DoorProcess running = new DoorProcess(100, "procesoCorriendo", adminUser, new MyLinkedListImpl<>());
+        running.setPrioridad(900);
+        manager.getPendingProcesses().insert(running);
+        manager.executeNextProcess();
+
+        // Pendientes
+        DoorProcess pending1 = new DoorProcess(101, "procesoPendiente1", genericUser, new MyLinkedListImpl<>());
+        pending1.setPrioridad(300);
+        manager.getPendingProcesses().insert(pending1);
+
+        DoorProcess pending2 = new DoorProcess(102, "ProcesoPendiente2", adminUser, new MyLinkedListImpl<>());
+        pending2.setPrioridad(700);
+        manager.getPendingProcesses().insert(pending2);
+
+        // Finalizados
+        DoorProcess finished1 = new DoorProcess(103, "procesoFinalizado1", genericUser, new MyLinkedListImpl<>());
+        finished1.setEstado(DoorProcess.ProcessState.FINISHED);
+        finished1.setFinishedState(DoorProcess.FinishedState.OK);
+        manager.getFinished_processes().push(finished1);
+        DoorProcess finished2 = new DoorProcess(104, "procesoFinalizado2", adminUser, new MyLinkedListImpl<>());
+        finished2.setEstado(DoorProcess.ProcessState.FINISHED);
+        finished2.setFinishedState(DoorProcess.FinishedState.ERROR);
+        manager.getFinished_processes().push(finished2);
+
+        return manager;
     }
 
     @Test
-    void printStatusVerbose() {
+    void printStatus_noModificaEstructuras() {
+        ProcessManagerImpl manager = setupConDatos();
+
+        int pendingSizeAntes = manager.getPendingProcesses().size();
+        int finishedSizeAntes = manager.getFinished_processes().size();
+        DoorProcess runningAntes = manager.getRunningProcess();
+        assertDoesNotThrow(manager::printStatus);
+        assertEquals(pendingSizeAntes, manager.getPendingProcesses().size());
+        assertEquals(finishedSizeAntes, manager.getFinished_processes().size());
+        assertEquals(runningAntes, manager.getRunningProcess());
     }
 
     @Test
-    void printStatusByUser() {
+    void printStatusVerbose_noModificaEstructuras() {
+        ProcessManagerImpl manager = setupConDatos();
+
+        MyList<String> instrucciones = new MyLinkedListImpl<>();
+        instrucciones.add("instruccion1");
+        instrucciones.add("instruccion2");
+        MyList<Event> eventos = new MyLinkedListImpl<>();
+        eventos.add(new Event(Event.EventType.CPU, instrucciones));
+        User genericUser = (User) manager.getUserByUID().get(2);
+        DoorProcess conEventos = new DoorProcess(105, "proceso", genericUser, eventos);
+        conEventos.setPrioridad(400);
+        manager.getPendingProcesses().insert(conEventos);
+        int pendingSizeAntes = manager.getPendingProcesses().size();
+        int finishedSizeAntes = manager.getFinished_processes().size();
+
+        assertDoesNotThrow(() -> manager.printStatusVerbose());
+        assertEquals(pendingSizeAntes, manager.getPendingProcesses().size());
+        assertEquals(finishedSizeAntes, manager.getFinished_processes().size());
     }
 
     @Test
-    void printStatusByProcess() {
+    void printStatusByUser_noModificaEstructuras() {
+        ProcessManagerImpl manager = setupConDatos();
+        int pendingSizeAntes = manager.getPendingProcesses().size();
+        int finishedSizeAntes = manager.getFinished_processes().size();
+
+        assertDoesNotThrow(() -> manager.printStatusByUser(1));
+        assertEquals(pendingSizeAntes, manager.getPendingProcesses().size());
+        assertEquals(finishedSizeAntes, manager.getFinished_processes().size());
+    }
+
+    @Test
+    void printStatusByUser_conUidInexistente_noRompe() {
+        ProcessManagerImpl manager = setupConDatos();
+        assertDoesNotThrow(() -> manager.printStatusByUser(9999));
+    }
+
+    @Test
+    void printStatusByProcess_conPidExistente_noRompe() {
+        ProcessManagerImpl manager = setupConDatos();
+        assertDoesNotThrow(() -> manager.printStatusByProcess(101));
+    }
+
+    @Test
+    void printStatusByProcess_conPidInexistente_noRompe() {
+        ProcessManagerImpl manager = setupConDatos();
+        assertDoesNotThrow(() -> manager.printStatusByProcess(9999));
+    }
+
+    @Test
+    void printStatusByProcess_noModificaElHeap() {
+        ProcessManagerImpl manager = setupConDatos();
+        int sizeAntes = manager.getPendingProcesses().size();
+        manager.printStatusByProcess(101);
+
+        assertEquals(sizeAntes, manager.getPendingProcesses().size());
     }
 }
